@@ -310,3 +310,60 @@ body {
 #ctx button { padding: 4px 22px 4px 18px; background: none; border: 0; text-align: left; font: 11px Tahoma, sans-serif; cursor: default; }
 #ctx button:hover { background: var(--navy); color: #fff; }
 #ctx hr { border: 0; height: 2px; margin: 2px; box-shadow: inset 0 1px var(--shadow), inset 0 -1px var(--hi); }
+
+/* ================= PART 3: Paint, Minesweeper, Task Manager, Run, extras ================= */
+.icons { flex-wrap: wrap; max-height: calc(100vh - 50px); align-content: flex-start; column-gap: 8px; row-gap: 10px; }
+
+/* ---------- Paint ---------- */
+.paint { flex: 1; display: flex; min-height: 0; margin-top: 2px; background: var(--face); }
+.p-tools { width: 54px; padding: 4px; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; align-content: start; }
+.p-tool { height: 22px; background: var(--face); border: 0; font-size: 12px; padding: 0; cursor: default;
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--shadow), inset 2px 2px #dfdfdf; }
+.p-tool.on { background: repeating-conic-gradient(#c0c0c0 0 25%, #fff 0 50%) 0 0 / 2px 2px;
+  box-shadow: inset 1px 1px var(--dark), inset -1px -1px var(--hi); }
+.p-main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.p-wrap { flex: 1; overflow: auto; background: #808080; padding: 3px; min-height: 0;
+  box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hi), inset 2px 2px var(--dark); }
+.p-wrap canvas { background: #fff; display: block; cursor: crosshair; touch-action: none; }
+.p-bottom { display: flex; align-items: center; gap: 6px; padding: 4px 2px; flex-wrap: wrap; }
+.p-cur { width: 28px; height: 28px; border: 2px inset #fff; background: #000; flex: none; }
+.p-pal { display: grid; grid-template-columns: repeat(8, 14px); gap: 1px; }
+.p-sw { width: 14px; height: 14px; border: 1px solid #808080; cursor: default; }
+.p-bottom .btn98x { height: 22px; padding: 0 8px; font-size: 11px; }
+
+/* ---------- Minesweeper ---------- */
+.ms-top { display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; margin-bottom: 6px;
+  box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hi); }
+.ms-lcd { background: #000; color: #f00; font: bold 20px 'Courier New', monospace; padding: 0 4px; min-width: 48px; text-align: center; letter-spacing: 2px; }
+.ms-face { width: 30px; height: 30px; font-size: 18px; background: var(--face); border: 0; cursor: default;
+  box-shadow: inset -1px -1px var(--dark), inset 1px 1px var(--hi), inset -2px -2px var(--shadow), inset 2px 2px #dfdfdf; }
+.ms-grid { display: grid; grid-template-columns: repeat(9, 24px); width: max-content; margin: auto; padding: 2px;
+  box-shadow: inset 2px 2px var(--shadow), inset -2px -2px var(--hi); }
+.ms-cell { width: 24px; height: 24px; border: 0; background: var(--face); font: bold 14px Arial, sans-serif; padding: 0; cursor: default;
+  box-shadow: inset -1px -1px var(--shadow), inset 1px 1px var(--hi); }
+.ms-cell.open { box-shadow: inset 1px 1px var(--shadow); }
+.ms-cell.boom { background: #f00; }
+
+/* ---------- Task Manager / Run ---------- */
+.tm-list { height: 150px; background: #fff; overflow-y: auto; margin-bottom: 8px;
+  box-shadow: inset 1px 1px var(--shadow), inset -1px -1px var(--hi), inset 2px 2px var(--dark); }
+.tm-row { display: flex; justify-content: space-between; padding: 2px 6px; cursor: default; }
+.tm-row.sel { background: var(--navy); color: #fff; }
+.tm-stat { padding-top: 6px; border-top: 1px solid var(--shadow); }
+.run-in { width: 100%; height: 22px; margin: 8px 0; padding: 0 4px; font: 12px Tahoma, sans-serif; border: 2px inset #fff; }
+
+/* ---------- Screensaver / BSOD ---------- */
+#ss { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 25000; background: #000; cursor: none; }
+#bsod { position: fixed; inset: 0; z-index: 28000; background: #0000aa; color: #fff; padding: 12vh 8vw;
+  font: 18px/1.5 'Lucida Console', 'Courier New', monospace; white-space: pre-wrap; cursor: none; }
+#bsod b { background: #aaa; color: #0000aa; padding: 0 8px; }
+
+/* ---------- Clippy ---------- */
+#clippy { position: fixed; right: 18px; bottom: 40px; z-index: 9100; display: flex; flex-direction: column; align-items: flex-end; }
+.cl-bub { position: relative; width: 230px; margin-bottom: 4px; padding: 10px 12px; background: #ffffe1; border: 1px solid #000;
+  font: 11px/1.45 Tahoma, sans-serif; box-shadow: 3px 3px 0 rgba(0, 0, 0, .35); user-select: text; }
+.cl-bub::after { content: ''; position: absolute; right: 22px; bottom: -9px; border: 5px solid transparent; border-top: 8px solid #000; }
+.cl-x { position: absolute; right: 3px; top: 1px; background: none; border: 0; font-size: 14px; cursor: default; }
+.cl-body { font-size: 46px; cursor: pointer; filter: drop-shadow(2px 2px 0 rgba(0, 0, 0, .35)); animation: clbob 2.4s ease-in-out infinite; }
+@keyframes clbob { 50% { transform: translateY(-5px) rotate(-6deg); } }
+#spk { cursor: default; }

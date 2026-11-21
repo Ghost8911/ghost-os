@@ -877,3 +877,366 @@ ctx.addEventListener('click', e => {
     setTimeout(() => { ic.style.visibility = ''; }, 150);
   }
 });
+
+// =====================================================================
+//  PART 3: Sounds, Paint, Minesweeper, Task Manager, Run, Screensaver,
+//  Blue Screen of Death, Clippy helper
+// =====================================================================
+(() => {
+  // ---------- SOUND ----------
+  let AC = null, muted = false;
+  function tone(f, d = 0.15, type = 'square', v = 0.05, when = 0) {
+    if (muted) return;
+    try {
+      AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+      const o = AC.createOscillator(), g = AC.createGain(), s = AC.currentTime + when;
+      o.type = type; o.frequency.value = f;
+      g.gain.setValueAtTime(v, s); g.gain.exponentialRampToValueAtTime(0.0001, s + d);
+      o.connect(g); g.connect(AC.destination); o.start(s); o.stop(s + d);
+    } catch {}
+  }
+  const chime = () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, .45, 'sine', .08, i * .13));
+  const ding = () => { tone(440, .18, 'triangle', .1); tone(330, .25, 'triangle', .1, .12); };
+  const fanfare = () => [523, 659, 784, 1047].forEach((f, i) => tone(f, .25, 'square', .05, i * .1));
+
+  const spk = document.createElement('span');
+  spk.id = 'spk'; spk.title = 'Volume'; spk.textContent = '\uD83D\uDD0A';
+  spk.onclick = () => { muted = !muted; spk.textContent = muted ? '\uD83D\uDD07' : '\uD83D\uDD0A'; if (!muted) ding(); };
+  $('osClock').parentElement.insertBefore(spk, $('osClock'));
+
+  document.addEventListener('pointerdown', () => chime(), { once: true });
+  const _msgBox = msgBox;
+  msgBox = function (...a) { ding(); return _msgBox(...a); };
+  const _cm = completeMission;
+  completeMission = async function () { fanfare(); return _cm(); };
+
+  // ---------- icons ----------
+  document.querySelector('svg defs').insertAdjacentHTML('beforeend', `
+    <symbol id="ico-paint" viewBox="0 0 32 32"><rect x="3" y="4" width="26" height="22" fill="#fff" stroke="#000"/>
+      <circle cx="10" cy="11" r="3" fill="#f00"/><circle cx="18" cy="9" r="3" fill="#0a0"/><circle cx="22" cy="17" r="3" fill="#00f"/>
+      <path d="M6 24L24 6" stroke="#8b5a00" stroke-width="3"/><path d="M5 26l3-1-2-2z" fill="#000"/></symbol>
+    <symbol id="ico-mine" viewBox="0 0 32 32"><rect x="3" y="3" width="26" height="26" fill="#c0c0c0" stroke="#808080"/>
+      <circle cx="16" cy="16" r="6" fill="#000"/><path d="M16 6v20M6 16h20M9 9l14 14M23 9L9 23" stroke="#000"/>
+      <rect x="13" y="13" width="3" height="3" fill="#fff"/></symbol>`);
+
+  const startItem = (label, icon, action) => {
+    const b = document.createElement('button');
+    b.innerHTML = `<svg class="ico32"><use href="#${icon}"/></svg>${label}`;
+    b.onclick = () => { action(); startMenu.classList.add('hidden'); startBtn.classList.remove('pressed'); };
+    const sm = document.querySelector('.sm-items');
+    sm.insertBefore(b, sm.querySelector('hr'));
+  };
+
+  // =====================  PAINT  =====================
+  const PW = 480, PH = 290;
+  makeWindow('win-paint', 'untitled - Paint', 'ico-paint', 590, 440, 20, 130, `
+    <div class="menubar"><span>File</span><span>Edit</span><span>View</span><span>Image</span><span>Help</span></div>
+    <div class="paint">
+      <div class="p-tools" id="pTools"></div>
+      <div class="p-main">
+        <div class="p-wrap"><canvas id="pCv" width="${PW}" height="${PH}"></canvas></div>
+        <div class="p-bottom">
+          <div class="p-cur" id="pCur"></div><div class="p-pal" id="pPal"></div>
+          <select id="pSize"><option>1</option><option selected>2</option><option>4</option><option>8</option><option>14</option></select>
+          <button class="btn98x" id="pClr">Clear</button><button class="btn98x" id="pSave">Save PNG</button>
+        </div>
+      </div>
+    </div>`);
+  const cv = $('pCv'), pc = cv.getContext('2d');
+  pc.fillStyle = '#fff'; pc.fillRect(0, 0, PW, PH);
+  pc.lineCap = 'round'; pc.lineJoin = 'round';
+  let tool = 'pencil', color = '#000000', drawing = false, sx = 0, sy = 0, snap = null;
+  const TOOLS = [['pencil', '\u270F\uFE0F'], ['brush', '\uD83D\uDD8C\uFE0F'], ['eraser', '\uD83E\uDDFD'], ['fill', '\uD83E\uDEA3'], ['line', '\u2571'], ['rect', '\u25AD']];
+  TOOLS.forEach(([n, ic]) => {
+    const b = document.createElement('button');
+    b.className = 'p-tool' + (n === tool ? ' on' : ''); b.textContent = ic; b.title = n;
+    b.onclick = () => { tool = n; document.querySelectorAll('.p-tool').forEach(x => x.classList.toggle('on', x === b)); };
+    $('pTools').appendChild(b);
+  });
+  ['#000000', '#808080', '#800000', '#808000', '#008000', '#008080', '#000080', '#800080',
+   '#ffffff', '#c0c0c0', '#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'].forEach(c => {
+    const s = document.createElement('div');
+    s.className = 'p-sw'; s.style.background = c;
+    s.onclick = () => { color = c; $('pCur').style.background = c; };
+    $('pPal').appendChild(s);
+  });
+  const xy = e => { const r = cv.getBoundingClientRect(); return [Math.floor(e.clientX - r.left), Math.floor(e.clientY - r.top)]; };
+  function flood(x, y) {
+    const img = pc.getImageData(0, 0, PW, PH), d = img.data;
+    const i0 = (y * PW + x) * 4, t = [d[i0], d[i0 + 1], d[i0 + 2]];
+    const r = parseInt(color.slice(1, 3), 16), g = parseInt(color.slice(3, 5), 16), b = parseInt(color.slice(5, 7), 16);
+    if (t[0] === r && t[1] === g && t[2] === b) return;
+    const st = [[x, y]];
+    while (st.length) {
+      const [px, py] = st.pop();
+      if (px < 0 || py < 0 || px >= PW || py >= PH) continue;
+      const i = (py * PW + px) * 4;
+      if (d[i] !== t[0] || d[i + 1] !== t[1] || d[i + 2] !== t[2]) continue;
+      d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255;
+      st.push([px + 1, py], [px - 1, py], [px, py + 1], [px, py - 1]);
+    }
+    pc.putImageData(img, 0, 0);
+  }
+  const pSize = () => +$('pSize').value;
+  function style() {
+    pc.strokeStyle = tool === 'eraser' ? '#ffffff' : color;
+    pc.lineWidth = tool === 'pencil' ? 1 : tool === 'eraser' ? pSize() * 4 : pSize();
+  }
+  cv.addEventListener('pointerdown', e => {
+    cv.setPointerCapture(e.pointerId);
+    [sx, sy] = xy(e);
+    if (tool === 'fill') { flood(sx, sy); return; }
+    drawing = true; style();
+    snap = pc.getImageData(0, 0, PW, PH);
+    if (tool === 'pencil' || tool === 'brush' || tool === 'eraser') {
+      pc.beginPath(); pc.moveTo(sx, sy); pc.lineTo(sx + 0.01, sy + 0.01); pc.stroke();
+    }
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!drawing) return;
+    const [x, y] = xy(e);
+    if (tool === 'pencil' || tool === 'brush' || tool === 'eraser') { pc.lineTo(x, y); pc.stroke(); }
+    else {
+      pc.putImageData(snap, 0, 0); style(); pc.beginPath();
+      if (tool === 'line') { pc.moveTo(sx, sy); pc.lineTo(x, y); }
+      else pc.rect(sx, sy, x - sx, y - sy);
+      pc.stroke();
+    }
+  });
+  const pEnd = () => { drawing = false; };
+  cv.addEventListener('pointerup', pEnd); cv.addEventListener('pointercancel', pEnd);
+  $('pClr').onclick = () => { pc.fillStyle = '#fff'; pc.fillRect(0, 0, PW, PH); };
+  $('pSave').onclick = () => { const a = document.createElement('a'); a.href = cv.toDataURL('image/png'); a.download = 'ghost_paint.png'; a.click(); };
+
+  // =====================  MINESWEEPER  =====================
+  const W = 9, H = 9, MINES = 10;
+  makeWindow('win-mines', 'Minesweeper', 'ico-mine', 262, 340, 40, 300, `
+    <div class="app-body">
+      <div class="ms-top"><div class="ms-lcd" id="msMines">010</div><button class="ms-face" id="msFace">\uD83D\uDE42</button><div class="ms-lcd" id="msTime">000</div></div>
+      <div class="ms-grid" id="msGrid"></div>
+    </div>`, true);
+  let board, over, started, flags, secs, msT;
+  const grid = $('msGrid');
+  const NC = ['', '#0000ff', '#008000', '#ff0000', '#000080', '#800000', '#008080', '#000', '#808080'];
+  const p3 = n => String(Math.max(0, Math.min(999, n))).padStart(3, '0');
+  const near = i => {
+    const x = i % W, y = Math.floor(i / W), o = [];
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      const nx = x + dx, ny = y + dy;
+      if (nx >= 0 && nx < W && ny >= 0 && ny < H) o.push(ny * W + nx);
+    }
+    return o;
+  };
+  function msReset() {
+    clearInterval(msT);
+    board = Array.from({ length: W * H }, () => ({ m: false, o: false, f: false, n: 0 }));
+    over = false; started = false; flags = 0; secs = 0;
+    $('msFace').textContent = '\uD83D\uDE42'; $('msTime').textContent = '000'; $('msMines').textContent = p3(MINES);
+    grid.innerHTML = '';
+    board.forEach((_, i) => {
+      const c = document.createElement('button');
+      c.className = 'ms-cell';
+      c.onclick = () => msOpen(i);
+      c.oncontextmenu = e => { e.preventDefault(); msFlag(i); };
+      grid.appendChild(c);
+    });
+  }
+  function msDraw(i) {
+    const c = grid.children[i], d = board[i];
+    c.className = 'ms-cell' + (d.o ? ' open' : '');
+    c.textContent = d.o ? (d.m ? '\uD83D\uDCA3' : d.n || '') : d.f ? '\uD83D\uDEA9' : '';
+    c.style.color = d.o && d.n ? NC[d.n] : '';
+  }
+  function msOpen(i) {
+    if (over || board[i].o || board[i].f) return;
+    if (!started) {
+      started = true;
+      let n = 0;
+      while (n < MINES) { const r = Math.floor(Math.random() * W * H); if (r === i || board[r].m || near(i).includes(r)) continue; board[r].m = true; n++; }
+      board.forEach((c, k) => c.n = near(k).filter(j => board[j].m).length);
+      msT = setInterval(() => { secs++; $('msTime').textContent = p3(secs); }, 1000);
+    }
+    const st = [i];
+    while (st.length) {
+      const k = st.pop(), d = board[k];
+      if (d.o || d.f) continue;
+      d.o = true; msDraw(k);
+      if (d.m) {
+        over = true; clearInterval(msT); $('msFace').textContent = '\uD83D\uDE35';
+        board.forEach((c, j) => { if (c.m) { c.o = true; msDraw(j); } });
+        grid.children[k].classList.add('boom');
+        return;
+      }
+      if (d.n === 0) st.push(...near(k));
+    }
+    if (board.filter(c => c.o).length === W * H - MINES) {
+      over = true; clearInterval(msT); $('msFace').textContent = '\uD83D\uDE0E';
+      fanfare(); msgBox('Minesweeper', `You cleared the field in ${secs} seconds!`);
+    }
+  }
+  function msFlag(i) {
+    if (over || board[i].o) return;
+    board[i].f = !board[i].f; flags += board[i].f ? 1 : -1;
+    $('msMines').textContent = p3(MINES - flags); msDraw(i);
+  }
+  $('msFace').onclick = msReset;
+  msReset();
+
+  // =====================  TASK MANAGER  =====================
+  makeWindow('win-tm', 'Windows Task Manager', 'ico-pc', 340, 390, 50, 260, `
+    <div class="menubar"><span>File</span><span>Options</span><span>View</span><span>Help</span></div>
+    <div class="app-body">
+      <div style="margin-bottom:4px"><b>Applications</b></div>
+      <div class="tm-list" id="tmList"></div>
+      <div class="dlg-btns" style="justify-content:flex-end;padding-top:0"><button id="tmEnd">End Task</button><button id="tmSw">Switch To</button><button id="tmNew">New Task...</button></div>
+      <div class="tm-stat">CPU Usage: <b id="tmCpu">3%</b> &nbsp; Tasks: <b id="tmN">0</b> &nbsp; Trace: <b id="tmTr">--</b></div>
+    </div>`, true);
+  let tmSel = null;
+  function tmDraw() {
+    if ($('win-tm').classList.contains('hidden')) return;
+    const rows = Object.entries(winMeta).filter(([id]) => id !== 'win-tm' && !$(id).classList.contains('hidden'));
+    const list = $('tmList'); list.innerHTML = '';
+    rows.forEach(([id, m]) => {
+      const d = document.createElement('div');
+      d.className = 'tm-row' + (id === tmSel ? ' sel' : '');
+      const a = document.createElement('span'), b = document.createElement('span');
+      a.textContent = m.title; b.textContent = $(id).classList.contains('minimized') ? 'Minimized' : 'Running';
+      d.append(a, b); d.onclick = () => { tmSel = id; tmDraw(); };
+      list.appendChild(d);
+    });
+    $('tmN').textContent = rows.length;
+    $('tmCpu').textContent = (busy ? 40 + Math.floor(Math.random() * 40) : 1 + Math.floor(Math.random() * 6)) + '%';
+    $('tmTr').textContent = connected ? Math.floor(trace) + '%' : '--';
+  }
+  setInterval(tmDraw, 700);
+  $('tmEnd').onclick = () => { if (tmSel && winMeta[tmSel]) { closeWin(tmSel); tmSel = null; tmDraw(); } };
+  $('tmSw').onclick = () => { if (tmSel) focusWin(tmSel); };
+  const openTm = () => { focusWin('win-tm'); tmDraw(); };
+  document.addEventListener('keydown', e => { if (e.ctrlKey && e.altKey && (e.key === 'Delete' || e.key === 'End')) { e.preventDefault(); openTm(); } });
+
+  // =====================  RUN DIALOG + PROGRAM LAUNCHER  =====================
+  const PROGS = {
+    cmd: () => focusWin('win-terminal'), command: () => focusWin('win-terminal'), msdos: () => focusWin('win-terminal'),
+    calc: () => focusWin('win-calc'), calculator: () => focusWin('win-calc'),
+    paint: () => focusWin('win-paint'), mspaint: () => focusWin('win-paint'),
+    winmine: () => focusWin('win-mines'), minesweeper: () => focusWin('win-mines'),
+    snakes: () => focusWin('win-snl'), snl: () => focusWin('win-snl'),
+    notepad: () => focusWin('win-mission'), missions: () => focusWin('win-mission'),
+    control: () => openDisp(), desk: () => openDisp(), display: () => openDisp(),
+    taskmgr: openTm
+  };
+  function runProg(name) {
+    const n = (name || '').trim().toLowerCase().replace(/\.(exe|com|cpl)$/, '');
+    if (Object.hasOwn(PROGS, n)) { PROGS[n](); return true; }
+    return false;
+  }
+  makeWindow('win-run', 'Run', 'ico-dos', 360, 170, 180, 300, `
+    <div class="app-body" style="margin-top:3px">
+      <div style="display:flex;gap:10px;align-items:center"><svg class="ico32"><use href="#ico-dos"/></svg>
+      <span>Type the name of a program, and Windows will open it for you.<br>Try: cmd, calc, paint, winmine, snakes, control, taskmgr</span></div>
+      <input class="run-in" id="runIn" autocomplete="off" spellcheck="false">
+      <div class="dlg-btns" style="padding:0"><button id="runOk">OK</button><button id="runCancel">Cancel</button></div>
+    </div>`, true);
+  const runGo = () => {
+    const v = $('runIn').value;
+    closeWin('win-run');
+    $('runIn').value = '';
+    if (v.trim() && !runProg(v)) msgBox('Run', `Cannot find the file '${v.trim()}' (or one of its components). Make sure the path and filename are correct.`);
+  };
+  $('runOk').onclick = runGo;
+  $('runCancel').onclick = () => closeWin('win-run');
+  $('runIn').addEventListener('keydown', e => { if (e.key === 'Enter') runGo(); if (e.key === 'Escape') closeWin('win-run'); });
+  const openRun = () => { focusWin('win-run'); $('runIn').focus(); };
+  $('tmNew').onclick = openRun;
+
+  // terminal <-> desktop bridge
+  commands.start = ([n]) => {
+    if (!n) return print('usage: start <program>   (cmd, calc, paint, winmine, snakes, control, taskmgr)', 'line-err');
+    if (!runProg(n)) print(`start: cannot find '${n}'`, 'line-err');
+  };
+  commands.bsod = () => bsod();
+  commands.format = async ([d]) => {
+    if (!d) return print('usage: format c:', 'line-err');
+    await typeLine('WARNING: ALL DATA ON NON-REMOVABLE DISK DRIVE C: WILL BE LOST!', 'line-err', 12);
+    await sleep(700);
+    await progress('Formatting 2,147 MB', 1800);
+    bsod();
+  };
+  const _help = commands.help;
+  commands.help = () => { _help(); print('  start <app>, bsod, format c:\n  (apps: cmd calc paint winmine snakes control taskmgr)', 'line-sys'); };
+
+  // =====================  BLUE SCREEN  =====================
+  const bs = document.createElement('div');
+  bs.id = 'bsod'; bs.className = 'hidden';
+  bs.innerHTML = `<div style="text-align:center"><b>Windows</b></div><br>A fatal exception 0E has occurred at 0028:C0011E36 in VXD VMM(01) +
+00010E36. The current application will be terminated.
+
+*  Press any key to terminate the current application.
+*  Press CTRL+ALT+DEL again to restart your computer. You will
+   lose any unsaved information in all applications.
+
+<div style="text-align:center">Press any key to continue _</div>`;
+  document.body.appendChild(bs);
+  let bsAt = 0;
+  function bsod() { bs.classList.remove('hidden'); bsAt = Date.now(); tone(120, .6, 'sawtooth', .08); }
+  const bsOff = () => { if (!bs.classList.contains('hidden') && Date.now() - bsAt > 800) { bs.classList.add('hidden'); if (!termIn.disabled) termIn.focus(); } };
+  document.addEventListener('keydown', bsOff); document.addEventListener('mousedown', bsOff);
+
+  // =====================  SCREENSAVER  =====================
+  const ss = document.createElement('canvas');
+  ss.id = 'ss'; ss.className = 'hidden';
+  document.body.appendChild(ss);
+  let ssOn = false, ssRaf = 0, ssStarted = 0, idle = 0, stars = [];
+  function ssRun() {
+    const g = ss.getContext('2d');
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, ss.width, ss.height);
+    const cx = ss.width / 2, cy = ss.height / 2;
+    stars.forEach(s => {
+      s.z -= 8; if (s.z < 1) { s.x = (Math.random() - .5) * ss.width; s.y = (Math.random() - .5) * ss.height; s.z = ss.width; }
+      const k = 256 / s.z, px = cx + s.x * k, py = cy + s.y * k, r = Math.max(.5, (1 - s.z / ss.width) * 3);
+      g.fillStyle = '#fff'; g.fillRect(px, py, r, r);
+    });
+    ssRaf = requestAnimationFrame(ssRun);
+  }
+  function ssStart() {
+    if (ssOn || connected) return;
+    ssOn = true; ssStarted = Date.now();
+    ss.width = innerWidth; ss.height = innerHeight;
+    stars = Array.from({ length: 220 }, () => ({ x: (Math.random() - .5) * ss.width, y: (Math.random() - .5) * ss.height, z: Math.random() * ss.width }));
+    ss.classList.remove('hidden');
+    ssRun();
+  }
+  function ssStop() { ssOn = false; cancelAnimationFrame(ssRaf); ss.classList.add('hidden'); }
+  const wake = e => {
+    if (ssOn && (e.type !== 'mousemove' || Date.now() - ssStarted > 600)) ssStop();
+    idle = 0;
+  };
+  ['mousemove', 'mousedown', 'keydown', 'touchstart'].forEach(ev => document.addEventListener(ev, wake, true));
+  setInterval(() => { if (!ssOn && ++idle >= 45) ssStart(); }, 1000);
+
+  // =====================  CLIPPY  =====================
+  const clip = document.createElement('div');
+  clip.id = 'clippy';
+  clip.innerHTML = `<div class="cl-bub hidden" id="clBub"><button class="cl-x" id="clX">&times;</button><div id="clTxt"></div></div><div class="cl-body" id="clBody">\uD83D\uDCCE</div>`;
+  document.body.appendChild(clip);
+  const HINTS = [
+    'It looks like you are trying to hack a server! Try: cd missions, then cat target_01.enc, then decrypt followed by the text you see.',
+    'Nice decoding! Now type scan, then crack 192.168.1.44:8080 and connect 192.168.1.44:8080. The trace starts when you connect!',
+    'You are inside! Look in the admin folder. That password is hex, so use the hex command on it, then unlock <password>. Use spoof if the trace gets high!',
+    'You emptied the vault! Want to relax? Try Paint, Minesweeper or Snakes & Ladders from the Start menu.'
+  ];
+  const clSay = (t = HINTS[Math.min(stage, 3)]) => { $('clTxt').textContent = t; $('clBub').classList.remove('hidden'); };
+  $('clX').onclick = () => $('clBub').classList.add('hidden');
+  $('clBody').onclick = () => $('clBub').classList.contains('hidden') ? clSay() : $('clBub').classList.add('hidden');
+  let clStage = -1;
+  setInterval(() => { if (stage !== clStage && !busy && !$('bootScreen')) { clStage = stage; clSay(); } }, 1500);
+
+  // ---------- launchers ----------
+  addLaunchers('Paint', 'ico-paint', () => focusWin('win-paint'));
+  addLaunchers('Minesweeper', 'ico-mine', () => focusWin('win-mines'));
+  startItem('Run...', 'ico-dos', openRun);
+  startItem('Task Manager', 'ico-pc', openTm);
+  const cm = $('ctx');
+  if (cm) { const b = document.createElement('button'); b.dataset.a = 'tm'; b.textContent = 'Task Manager'; cm.insertBefore(b, cm.querySelector('hr')); cm.addEventListener('click', e => { if (e.target.dataset.a === 'tm') openTm(); }); }
+})();

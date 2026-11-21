@@ -9,7 +9,6 @@
 <body>
   <div class="scanlines"></div>
 
-  <!-- Top Bar -->
   <header class="topbar">
     <div class="brand"><span class="dot"></span> GHOST_OS v1.0</div>
     <div class="sys-stats">
@@ -18,10 +17,8 @@
     </div>
   </header>
 
-  <!-- Desktop Workspace -->
   <main class="desktop" id="desktop">
-    <!-- Terminal Window -->
-    <section class="window active" id="win-terminal" style="top: 64px; left: 40px; width: 640px; height: 420px;">
+    <section class="window active" id="win-terminal" style="top: 24px; left: 40px; width: 640px; height: 420px;">
       <div class="win-header" data-drag="win-terminal">
         <span>ghost@kerala-node:~</span>
         <div class="win-btns">
@@ -35,8 +32,7 @@
       </form>
     </section>
 
-    <!-- Mission Brief Window -->
-    <section class="window" id="win-mission" style="top: 84px; left: 710px; width: 340px; height: 290px;">
+    <section class="window" id="win-mission" style="top: 44px; left: 710px; width: 340px; height: 330px;">
       <div class="win-header" data-drag="win-mission">
         <span>mission_brief.txt</span>
         <div class="win-btns">
@@ -51,11 +47,15 @@
           <li>Read files with <code>cat &lt;file&gt;</code></li>
           <li>Decode the hidden key using <code>decrypt &lt;text&gt;</code></li>
         </ul>
+        <h3 style="margin-top:14px">[02] Breach</h3>
+        <p>Use the key to connect to the target node. Check <code>logs</code> and run <code>scan</code>.</p>
+        <ul>
+          <li><code>connect &lt;host:port&gt;</code></li>
+        </ul>
       </div>
     </section>
   </main>
 
-  <!-- Bottom Dock -->
   <footer class="dock">
     <button onclick="toggleWin('win-terminal')">Terminal</button>
     <button onclick="toggleWin('win-mission')">Missions</button>

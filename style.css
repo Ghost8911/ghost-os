@@ -44,6 +44,7 @@ body {
   position: absolute;
   display: flex;
   flex-direction: column;
+  max-width: calc(100vw - 20px);
   background: var(--glass);
   backdrop-filter: blur(14px);
   border: 1px solid var(--border);
@@ -53,7 +54,7 @@ body {
   resize: both;
 }
 .window.hidden { display: none; }
-.window.active { border-color: var(--lime); z-index: 10; }
+.window.active { border-color: var(--lime); }
 
 .win-header {
   height: 32px;
@@ -106,9 +107,10 @@ body {
   color: #fff;
   font: inherit;
   font-size: 0.85rem;
+  caret-color: var(--lime);
 }
 
-.win-content { padding: 16px; font-size: 0.84rem; line-height: 1.6; }
+.win-content { padding: 16px; font-size: 0.84rem; line-height: 1.6; overflow-y: auto; }
 .win-content h3 { color: var(--lime); margin-bottom: 8px; }
 .win-content ul { padding-left: 18px; margin-top: 10px; }
 code { background: rgba(182, 255, 0, 0.15); color: var(--lime); padding: 1px 5px; border-radius: 4px; }

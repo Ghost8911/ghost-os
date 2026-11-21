@@ -20,9 +20,11 @@ const fs = {
 };
 
 let cwd = [];
+let hasKey = false;
 const termOut = document.getElementById('termOut');
 const termIn = document.getElementById('termIn');
 const promptLabel = document.getElementById('promptLabel');
+const missionBadge = document.getElementById('missionBadge');
 
 function getDir(pathArr = cwd) {
   let node = fs;
@@ -43,12 +45,14 @@ function updatePrompt() {
 }
 
 const commands = {
-  help: () => print('Commands: help, ls, cd <dir>, cat <file>, mkdir <name>, decrypt <b64>, scan, clear', 'line-sys'),
+  help: () => print('Commands: help, ls, cd <dir>, cat <file>, mkdir <name>, decrypt <b64>, scan, connect <host:port>, clear', 'line-sys'),
+
   ls: () => {
     const dir = getDir();
     const items = Object.entries(dir.children).map(([k, v]) => v.type === 'dir' ? `[${k}/]` : k);
     print(items.length ? items.join('   ') : '(empty)');
   },
+
   cd: ([target]) => {
     if (!target || target === '~') { cwd = []; return updatePrompt(); }
     if (target === '..') { cwd.pop(); return updatePrompt(); }
@@ -60,47 +64,80 @@ const commands = {
       print(`cd: ${target}: No such directory`, 'line-err');
     }
   },
+
   cat: ([file]) => {
-    const dir = getDir();
-    const node = dir.children[file];
+    if (!file) return print('usage: cat <file>', 'line-err');
+    const node = getDir().children[file];
     if (!node) return print(`cat: ${file}: File not found`, 'line-err');
     if (node.type === 'dir') return print(`cat: ${file}: Is a directory`, 'line-err');
     print(node.content);
   },
+
   mkdir: ([name]) => {
     if (!name) return print('usage: mkdir <folder_name>', 'line-err');
     getDir().children[name] = { type: 'dir', children: {} };
     print(`Created directory: ${name}`, 'line-dim');
   },
+
   decrypt: ([str]) => {
     if (!str) return print('usage: decrypt <base64_string>', 'line-err');
     try {
       const decoded = atob(str);
       print(`DECODED PAYLOAD -> ${decoded}`, 'line-sys');
       if (decoded === 'SIDHARTH_ROOT_KEY') {
-        document.getElementById('missionBadge').textContent = 'MISSION 01: COMPLETE ✓';
+        hasKey = true;
+        missionBadge.textContent = 'MISSION 01: COMPLETE ✓';
         print('[★] ACCESS GRANTED! Mission 01 complete.', 'line-sys');
+        print('New objective: connect to the target node. See Missions window.', 'line-dim');
       }
     } catch {
       print('decrypt: Invalid Base64 input', 'line-err');
     }
   },
+
   scan: () => print('Scanning local subnet...\n192.168.1.1   [GATEWAY]\n192.168.1.44  [TARGET-NODE // PORT 8080 OPEN]', 'line-sys'),
+
+  connect: ([addr]) => {
+    if (!addr) return print('usage: connect <host:port>', 'line-err');
+    if (addr !== '192.168.1.44:8080') return print('connect: unknown host', 'line-err');
+    if (!hasKey) return print('connect: access denied. Root key required.', 'line-err');
+    missionBadge.textContent = 'MISSION 02: COMPLETE ✓';
+    print('[★] Connected to target node. Mission 02 complete.', 'line-sys');
+  },
+
   clear: () => { termOut.innerHTML = ''; }
 };
+
+// Command history
+const history = [];
+let hIdx = 0;
+
+termIn.addEventListener('keydown', e => {
+  if (e.key === 'ArrowUp' && history.length) {
+    hIdx = Math.max(0, hIdx - 1);
+    termIn.value = history[hIdx];
+    e.preventDefault();
+  } else if (e.key === 'ArrowDown') {
+    hIdx = Math.min(history.length, hIdx + 1);
+    termIn.value = history[hIdx] ?? '';
+    e.preventDefault();
+  }
+});
 
 document.getElementById('termForm').addEventListener('submit', e => {
   e.preventDefault();
   const raw = termIn.value.trim();
   termIn.value = '';
   if (!raw) return;
+  history.push(raw);
+  hIdx = history.length;
   print(`${promptLabel.textContent} ${raw}`, 'line-dim');
   const [cmd, ...args] = raw.split(/\s+/);
-  if (commands[cmd]) commands[cmd](args);
+  if (Object.hasOwn(commands, cmd)) commands[cmd](args);
   else print(`${cmd}: command not found (type "help")`, 'line-err');
 });
 
-// Window Dragging & Focus
+// Window focus
 let zTop = 10;
 document.querySelectorAll('.window').forEach(win => {
   win.addEventListener('mousedown', () => {
@@ -110,8 +147,10 @@ document.querySelectorAll('.window').forEach(win => {
   });
 });
 
+// Window dragging
 document.querySelectorAll('[data-drag]').forEach(bar => {
   bar.addEventListener('mousedown', e => {
+    if (e.target.closest('button')) return;
     const win = document.getElementById(bar.dataset.drag);
     const startX = e.clientX - win.offsetLeft;
     const startY = e.clientY - win.offsetTop;
@@ -130,10 +169,15 @@ document.querySelectorAll('[data-drag]').forEach(bar => {
 
 function toggleWin(id) {
   document.getElementById(id).classList.toggle('hidden');
+  if (id === 'win-terminal') termIn.focus();
 }
+
+// Always keep typing focus on the terminal
+document.getElementById('win-terminal').addEventListener('click', () => termIn.focus());
 
 setInterval(() => {
   document.getElementById('osClock').textContent = new Date().toLocaleTimeString();
 }, 1000);
 
 print('GhostOS v1.0 [TTY1] — Type "help" to begin.', 'line-sys');
+termIn.focus();

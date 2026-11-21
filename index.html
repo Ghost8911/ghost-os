@@ -3,62 +3,111 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GhostOS // v1.0</title>
+  <title>Windows 98 // GhostOS</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="scanlines"></div>
 
-  <header class="topbar">
-    <div class="brand"><span class="dot"></span> GHOST_OS v1.0</div>
-    <div class="sys-stats">
-      <span id="missionBadge">MISSION 01: RECON</span>
-      <span id="osClock">--:--:--</span>
-    </div>
-  </header>
+  <!-- Icon library -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <symbol id="ico-dos" viewBox="0 0 32 32">
+        <rect x="2" y="4" width="28" height="24" fill="#000" stroke="#c0c0c0"/>
+        <rect x="2" y="4" width="28" height="4" fill="#000080"/>
+        <text x="5" y="22" font-size="9" fill="#c0c0c0" font-family="monospace">C:\_</text>
+      </symbol>
+      <symbol id="ico-note" viewBox="0 0 32 32">
+        <rect x="5" y="3" width="22" height="26" fill="#fff" stroke="#000"/>
+        <rect x="5" y="3" width="22" height="5" fill="#000080"/>
+        <path d="M9 13h14M9 17h14M9 21h14M9 25h9" stroke="#000080"/>
+      </symbol>
+      <symbol id="ico-bin" viewBox="0 0 32 32">
+        <path d="M8 8h16l-2 21H10z" fill="#c0c0c0" stroke="#000"/>
+        <rect x="6" y="5" width="20" height="3" fill="#808080" stroke="#000"/>
+        <path d="M13 11v15M16 11v15M19 11v15" stroke="#000"/>
+      </symbol>
+    </defs>
+  </svg>
 
+  <!-- Boot splash -->
+  <div id="bootScreen">
+    <div class="boot-logo">Microsoft <b>Windows</b><span>98</span></div>
+    <div class="boot-bar"><i></i></div>
+    <div class="boot-note">Starting GhostOS...</div>
+  </div>
+
+  <!-- Desktop -->
   <main class="desktop" id="desktop">
-    <section class="window active" id="win-terminal" style="top: 24px; left: 40px; width: 640px; height: 420px;">
-      <div class="win-header" data-drag="win-terminal">
-        <span>ghost@kerala-node:~</span>
+
+    <div class="icons">
+      <div class="icon" data-open="win-terminal">
+        <svg class="ico32"><use href="#ico-dos"/></svg><span>MS-DOS Prompt</span>
+      </div>
+      <div class="icon" data-open="win-mission">
+        <svg class="ico32"><use href="#ico-note"/></svg><span>Missions.txt</span>
+      </div>
+      <div class="icon" id="binIcon">
+        <svg class="ico32"><use href="#ico-bin"/></svg><span>Recycle Bin</span>
+      </div>
+    </div>
+
+    <!-- MS-DOS Prompt -->
+    <section class="window active" id="win-terminal" style="top: 20px; left: 110px; width: 620px; height: 400px;">
+      <div class="win-header">
+        <div class="win-title"><svg class="ico16"><use href="#ico-dos"/></svg><span>MS-DOS Prompt</span></div>
         <div class="win-btns">
-          <button onclick="toggleWin('win-terminal')">_</button>
+          <button class="wbtn" data-act="min">_</button>
+          <button class="wbtn" data-act="max">&#9633;</button>
+          <button class="wbtn" data-act="close">&times;</button>
         </div>
       </div>
-      <div class="term-body" id="termOut"></div>
-      <form class="term-input-row" id="termForm">
-        <span class="prompt" id="promptLabel">ghost@node:~$</span>
-        <input type="text" id="termIn" autocomplete="off" spellcheck="false" autofocus>
-      </form>
+      <div class="dos">
+        <div class="term-body" id="termOut"></div>
+        <form class="term-input-row" id="termForm">
+          <span class="prompt" id="promptLabel">C:\GHOST></span>
+          <input type="text" id="termIn" autocomplete="off" spellcheck="false" autofocus>
+        </form>
+      </div>
     </section>
 
-    <section class="window" id="win-mission" style="top: 44px; left: 710px; width: 340px; height: 330px;">
-      <div class="win-header" data-drag="win-mission">
-        <span>mission_brief.txt</span>
+    <!-- Notepad -->
+    <section class="window" id="win-mission" style="top: 60px; left: 760px; width: 340px; height: 330px;">
+      <div class="win-header">
+        <div class="win-title"><svg class="ico16"><use href="#ico-note"/></svg><span>Missions - Notepad</span></div>
         <div class="win-btns">
-          <button onclick="toggleWin('win-mission')">_</button>
+          <button class="wbtn" data-act="min">_</button>
+          <button class="wbtn" data-act="max">&#9633;</button>
+          <button class="wbtn" data-act="close">&times;</button>
         </div>
       </div>
-      <div class="win-content" id="missionText">
-        <h3>[01] Initial Recon</h3>
-        <p>Welcome, operator. Explore your local node and locate the encrypted target payload.</p>
-        <ul>
-          <li>Run <code>ls</code> and <code>cd</code> to inspect directories</li>
-          <li>Read files with <code>cat &lt;file&gt;</code></li>
-          <li>Decode the hidden key using <code>decrypt &lt;text&gt;</code></li>
-        </ul>
-        <h3 style="margin-top:14px">[02] Breach</h3>
-        <p>Use the key to connect to the target node. Check <code>logs</code> and run <code>scan</code>.</p>
-        <ul>
-          <li><code>connect &lt;host:port&gt;</code></li>
-        </ul>
-      </div>
+      <div class="menubar"><span>File</span><span>Edit</span><span>Search</span><span>Help</span></div>
+      <div class="notepad" id="missionText"></div>
     </section>
   </main>
 
-  <footer class="dock">
-    <button onclick="toggleWin('win-terminal')">Terminal</button>
-    <button onclick="toggleWin('win-mission')">Missions</button>
+  <!-- Start Menu -->
+  <div id="startMenu" class="hidden">
+    <div class="sm-side"><span>Windows<b>98</b></span></div>
+    <div class="sm-items">
+      <button data-open="win-terminal"><svg class="ico32"><use href="#ico-dos"/></svg>MS-DOS Prompt</button>
+      <button data-open="win-mission"><svg class="ico32"><use href="#ico-note"/></svg>Missions (Notepad)</button>
+      <hr>
+      <button id="smShutdown"><svg class="ico32"><use href="#ico-bin"/></svg>Shut Down...</button>
+    </div>
+  </div>
+
+  <!-- Taskbar -->
+  <footer class="taskbar">
+    <button id="startBtn" class="start">
+      <span class="flag"><i></i><i></i><i></i><i></i></span><b>Start</b>
+    </button>
+    <div class="tb-sep"></div>
+    <div id="tasks"></div>
+    <div class="tray">
+      <span id="traceBadge">TRACE: --</span>
+      <span id="missionBadge">M01 &bull; XP 0</span>
+      <span id="osClock">--:--</span>
+    </div>
   </footer>
 
   <script src="app.js"></script>
